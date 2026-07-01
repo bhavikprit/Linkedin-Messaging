@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="popup.css" />
+    <title>LinkedIn Message Drafter</title>
+  </head>
+  <body>
+    <header class="head">
+      <h1>Message Drafter</h1>
+      <button id="openSettings" class="link-btn" title="Settings">⚙︎ Settings</button>
+    </header>
+
+    <!-- Shown when the active tab is not a LinkedIn profile -->
+    <section id="notProfile" class="state hidden">
+      <p class="muted">
+        Open a LinkedIn profile (a <code>linkedin.com/in/…</code> page), then click
+        this icon again to draft a message.
+      </p>
+    </section>
+
+    <!-- Loading state while scraping -->
+    <section id="loading" class="state">
+      <p class="muted">Reading the profile…</p>
+    </section>
+
+    <!-- Main UI -->
+    <section id="main" class="state hidden">
+      <div class="card">
+        <div class="card-title">
+          <span>Profile</span>
+          <button id="rescrape" class="link-btn" title="Re-read the page">↻ Refresh</button>
+        </div>
+        <div class="grid">
+          <label>Name <input id="f_fullName" type="text" /></label>
+          <label>Role <input id="f_role" type="text" /></label>
+          <label>Company <input id="f_company" type="text" /></label>
+          <label>Location <input id="f_location" type="text" /></label>
+        </div>
+        <label class="full">Headline <input id="f_headline" type="text" /></label>
+      </div>
+
+      <div class="card">
+        <div class="grid">
+          <label
+            >Intent
+            <select id="intent"></select>
+          </label>
+          <label
+            >Tone
+            <select id="tone"></select>
+          </label>
+          <label
+            >Length
+            <select id="length"></select>
+          </label>
+          <label class="toggle-wrap">
+            <span>Use AI</span>
+            <input id="useAI" type="checkbox" />
+          </label>
+        </div>
+        <p id="aiHint" class="hint hidden">
+          Add your Anthropic API key in Settings to enable AI drafting.
+        </p>
+      </div>
+
+      <button id="generate" class="primary">Draft message</button>
+
+      <div id="outputCard" class="card hidden">
+        <div class="card-title">
+          <span>Draft</span>
+          <span id="charCount" class="muted small"></span>
+        </div>
+        <textarea id="output" rows="7"></textarea>
+        <div class="actions">
+          <button id="copy" class="secondary">Copy</button>
+          <button id="insert" class="secondary">Insert into LinkedIn</button>
+          <button id="regenerate" class="secondary">Regenerate</button>
+        </div>
+        <p id="status" class="status"></p>
+      </div>
+    </section>
+
+    <script src="../lib/defaults.js"></script>
+    <script src="popup.js"></script>
+  </body>
+</html>

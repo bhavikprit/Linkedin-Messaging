@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <link rel="stylesheet" href="options.css" />
+    <title>LinkedIn Message Drafter — Settings</title>
+  </head>
+  <body>
+    <main>
+      <h1>Message Drafter — Settings</h1>
+
+      <section class="card">
+        <h2>AI drafting (optional)</h2>
+        <p class="muted">
+          Add an Anthropic API key to turn on "Use AI" in the popup. Without a key, the
+          extension still works using editable templates. Your key is stored only on this
+          device (<code>chrome.storage.local</code>) and is sent directly to Anthropic.
+          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">Get a key →</a>
+        </p>
+        <label>Anthropic API key
+          <div class="row">
+            <input id="apiKey" type="password" placeholder="sk-ant-…" autocomplete="off" />
+            <button id="toggleKey" class="secondary" type="button">Show</button>
+            <button id="testKey" class="secondary" type="button">Test</button>
+          </div>
+        </label>
+        <p id="keyStatus" class="status"></p>
+
+        <label>Model
+          <select id="model"></select>
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>About you (the sender)</h2>
+        <p class="muted">Used to personalize the drafts and sign-off.</p>
+        <label>Your name
+          <input id="senderName" type="text" placeholder="Alex Rivera" />
+        </label>
+        <label>Your company
+          <input id="senderCompany" type="text" placeholder="Acme Inc." />
+        </label>
+        <label>What you offer / why you're reaching out
+          <textarea id="senderOffer" rows="2" placeholder="cut onboarding time in half with our API"></textarea>
+        </label>
+        <label>Extra instructions for the AI (optional)
+          <textarea id="customInstructions" rows="2" placeholder="Keep it casual. Mention we met at SaaStr if relevant."></textarea>
+        </label>
+      </section>
+
+      <section class="card">
+        <h2>Defaults</h2>
+        <div class="grid">
+          <label>Intent <select id="defaultIntent"></select></label>
+          <label>Tone <select id="defaultTone"></select></label>
+          <label>Length <select id="defaultLength"></select></label>
+          <label class="toggle-wrap"><span>Use AI by default</span>
+            <input id="useAI" type="checkbox" />
+          </label>
+        </div>
+      </section>
+
+      <div class="bar">
+        <button id="save" class="primary" type="button">Save settings</button>
+        <span id="saveStatus" class="status"></span>
+      </div>
+    </main>
+
+    <script src="../lib/defaults.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

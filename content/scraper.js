@@ -1,0 +1,220 @@
+// content/scraper.js
+// Runs on https://www.linkedin.com/in/* and extracts profile details on demand.
+// LinkedIn's DOM is obfuscated and changes often, so every selector has fallbacks
+// and the popup always lets the user review/edit what we scraped before drafting.
+
+(function () {
+  if (window.__lmdScraperLoaded) return; // guard against double-injection
+  window.__lmdScraperLoaded = true;
+
+  /** Trim + collapse whitespace; return "" for falsy input. */
+  function clean(text) {
+    return (text || "").replace(/\s+/g, " ").trim();
+  }
+
+  /**
+   * LinkedIn renders most visible text twice: once visually and once inside a
+   * `.visually-hidden` element for screen readers. The visible copy is marked
+   * aria-hidden="true". Reading that copy avoids duplicated strings.
+   */
+  function visibleText(el) {
+    if (!el) return "";
+    const span = el.querySelector('span[aria-hidden="true"]');
+    return clean(span ? span.textContent : el.textContent);
+  }
+
+  /** Find the <section> that contains an anchor like <div id="about">. */
+  function sectionByAnchor(anchorId) {
+    const anchor = document.getElementById(anchorId);
+    if (!anchor) return null;
+    return anchor.closest("section");
+  }
+
+  function getName() {
+    const h1 = document.querySelector("main h1") || document.querySelector("h1");
+    if (h1) {
+      const n = clean(h1.textContent);
+      if (n) return n;
+    }
+    // Fallback: og:title is usually "First Last | LinkedIn"
+    const og = document.querySelector('meta[property="og:title"]');
+    if (og) return clean(og.content.split("|")[0].split(" - ")[0]);
+    return clean((document.title || "").split("|")[0].split(" - ")[0]);
+  }
+
+  function getHeadline() {
+    // The headline sits in the top card as a text-body-medium block.
+    const candidates = document.querySelectorAll(
+      "main .text-body-medium.break-words, main div.text-body-medium"
+    );
+    for (const c of candidates) {
+      const t = clean(c.textContent);
+      if (t && t.length < 220) return t;
+    }
+    const og = document.querySelector('meta[property="og:description"]');
+    return og ? clean(og.content) : "";
+  }
+
+  function getLocation() {
+    const el = document.querySelector(
+      "main span.text-body-small.inline.t-black--light.break-words"
+    );
+    if (el) return clean(el.textContent);
+    // Fallback: any small light-text span in the top card that isn't a count.
+    const spans = document.querySelectorAll("main span.text-body-small");
+    for (const s of spans) {
+      const t = clean(s.textContent);
+      if (t && !/follower|connection|·|contact info/i.test(t) && t.length < 80) {
+        return t;
+      }
+    }
+    return "";
+  }
+
+  function getAbout() {
+    const section = sectionByAnchor("about");
+    if (!section) return "";
+    // Prefer the dedicated body element so the "About" heading never leaks in.
+    const body = section.querySelector(
+      ".inline-show-more-text, .pv-shared-text-with-see-more, .display-flex.ph5.pv3"
+    );
+    if (body) return clean(visibleText(body).replace(/[…\s]*see more$/i, ""));
+    // Fallback: structurally drop the header/hidden nodes, then read what's left.
+    const clone = section.cloneNode(true);
+    clone.querySelectorAll("h2, .pvs-header__container, .visually-hidden").forEach((n) => n.remove());
+    return clean(clone.textContent);
+  }
+
+  // True for strings that are date ranges, durations, or employment types — i.e.
+  // metadata that should not be mistaken for a company name.
+  function looksLikeDateOrType(text) {
+    return /(\b\d{4}\b|present|·|\b(yr|yrs|mo|mos)\b|full-?time|part-?time|contract|internship|freelance|self-?employed|seasonal)/i.test(
+      text
+    );
+  }
+
+  /** Pull the first N experience entries: { title, company }. */
+  function getExperience(limit = 3) {
+    const section = sectionByAnchor("experience");
+    if (!section) return [];
+    const items = section.querySelectorAll("li.artdeco-list__item, li.pvs-list__paged-list-item");
+    const out = [];
+    for (const li of items) {
+      const bold = li.querySelector(
+        ".t-bold span[aria-hidden='true'], .mr1.t-bold span[aria-hidden='true'], .hoverable-link-text.t-bold span[aria-hidden='true']"
+      );
+      const normals = li.querySelectorAll(".t-14.t-normal span[aria-hidden='true']");
+      const title = clean(bold ? bold.textContent : "");
+      // Pick the first normal span that reads like a company, skipping date/type rows.
+      let company = "";
+      for (const n of normals) {
+        const t = clean(n.textContent.split("·")[0]);
+        if (t && !looksLikeDateOrType(t)) {
+          company = t;
+          break;
+        }
+      }
+      if (title || company) out.push({ title, company });
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  function getEducation(limit = 2) {
+    const section = sectionByAnchor("education");
+    if (!section) return [];
+    const items = section.querySelectorAll("li.artdeco-list__item, li.pvs-list__paged-list-item");
+    const out = [];
+    for (const li of items) {
+      const bold = li.querySelector(".t-bold span[aria-hidden='true'], .hoverable-link-text.t-bold span[aria-hidden='true']");
+      const school = clean(bold ? bold.textContent : "");
+      if (school) out.push(school);
+      if (out.length >= limit) break;
+    }
+    return out;
+  }
+
+  function scrapeProfile() {
+    const fullName = getName();
+    const parts = fullName.split(" ").filter(Boolean);
+    const experience = getExperience();
+    const current = experience[0] || { title: "", company: "" };
+
+    return {
+      ok: true,
+      url: location.href,
+      fullName,
+      firstName: parts[0] || "",
+      lastName: parts.length > 1 ? parts[parts.length - 1] : "",
+      headline: getHeadline(),
+      location: getLocation(),
+      about: getAbout(),
+      role: current.title,
+      company: current.company,
+      experience,
+      education: getEducation(),
+      scrapedAt: Date.now(),
+    };
+  }
+
+  /** Insert drafted text into an open LinkedIn compose box, if one exists. */
+  function insertDraft(text) {
+    // 1) "Add a note" textarea inside the connect modal. LinkedIn's form is React-
+    //    controlled, so we set the value through the native setter (to defeat React's
+    //    value tracking) and fire both input and change events.
+    const note = document.querySelector("#custom-message, textarea[name='message']");
+    if (note) {
+      note.focus();
+      const setter = Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value").set;
+      setter.call(note, text);
+      note.dispatchEvent(new Event("input", { bubbles: true }));
+      note.dispatchEvent(new Event("change", { bubbles: true }));
+      return { ok: true, where: "connection-note" };
+    }
+    // 2) Messaging compose box (Draft.js contenteditable). DOM surgery doesn't update
+    //    Draft's internal model, so the Send button stays disabled. Route the text
+    //    through execCommand('insertText'), which Draft processes as real input.
+    const box = document.querySelector(
+      ".msg-form__contenteditable[contenteditable='true'], div[role='textbox'][contenteditable='true']"
+    );
+    if (box) {
+      box.focus();
+      let inserted = false;
+      try {
+        document.execCommand("selectAll", false, null);
+        inserted = document.execCommand("insertText", false, text);
+      } catch (_) {
+        inserted = false;
+      }
+      if (inserted) return { ok: true, where: "message-box" };
+      // Fallback for editors where execCommand is unavailable: DOM write + InputEvent.
+      box.replaceChildren();
+      const p = document.createElement("p");
+      p.textContent = text;
+      box.appendChild(p);
+      box.dispatchEvent(new InputEvent("input", { bubbles: true, inputType: "insertText", data: text }));
+      return {
+        ok: true,
+        where: "message-box",
+        warning: "Inserted, but if the Send button stays greyed out, type a space and delete it to wake it up.",
+      };
+    }
+    return { ok: false, error: "No open message box found. Open the message or 'Add a note' dialog first." };
+  }
+
+  chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
+    try {
+      if (msg && msg.type === "SCRAPE_PROFILE") {
+        sendResponse(scrapeProfile());
+        return true;
+      }
+      if (msg && msg.type === "INSERT_DRAFT") {
+        sendResponse(insertDraft(msg.text || ""));
+        return true;
+      }
+    } catch (e) {
+      sendResponse({ ok: false, error: String(e && e.message ? e.message : e) });
+      return true;
+    }
+  });
+})();
