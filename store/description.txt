@@ -1,0 +1,77 @@
+LinkedIn Message Drafter — Draft personalized LinkedIn outreach messages in one click.
+
+🚀 Stop staring at blank message boxes. LinkedIn Message Drafter reads the profile you're viewing and instantly generates a tailored outreach message — using smart templates or AI (powered by Claude).
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+✨ KEY FEATURES
+
+• One-Click Drafting — Open any LinkedIn profile, click the extension, and get a ready-to-send message in seconds.
+
+• Smart Templates — Built-in templates for Sales, Recruiting, Networking, and Connection Requests. No AI or API key needed.
+
+• AI-Powered Drafts (Optional) — Enable Claude AI for fully personalized messages that reference the person's specific background, experience, and role. Bring your own Anthropic API key.
+
+• Profile Auto-Detection — Automatically reads the name, role, company, headline, about section, location, and experience from the LinkedIn profile you're viewing. All fields are editable before drafting.
+
+• Customizable Options — Choose your intent (Sales, Recruiting, Networking, Connection Note), tone (Professional, Friendly, Casual), and message length (Short, Medium, Long).
+
+• Insert Directly — Copy your draft or insert it directly into LinkedIn's message box or "Add a note" field with one click.
+
+• Connection Note Smart Limits — Connection request notes respect LinkedIn's 300-character limit. The AI is instructed to stay under the cap, and a live character counter keeps you on track.
+
+• Multiple AI Models — Choose between Claude Opus (highest quality), Sonnet (balanced), or Haiku (fastest/cheapest) in Settings.
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📋 HOW IT WORKS
+
+1. Navigate to any LinkedIn profile (linkedin.com/in/…)
+2. Click the LinkedIn Message Drafter icon in your toolbar
+3. Review the auto-detected profile fields (edit if needed)
+4. Select your intent, tone, and message length
+5. Click "Draft message"
+6. Copy or insert directly into LinkedIn
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔒 PRIVACY & SECURITY
+
+• Your data stays on your device. Profile information is only kept in the popup during your current session — it's never stored or persisted.
+
+• No tracking, no analytics, no data collection. We don't track your browsing, collect telemetry, or sell data.
+
+• AI is optional. Template-based drafting works entirely offline with zero external requests. Profile data is sent to the Anthropic API only when you explicitly enable "Use AI" and click "Draft message."
+
+• API key stays local. Your Anthropic key is stored in chrome.storage.local (never synced) and is sent directly to api.anthropic.com — it never touches any other server.
+
+• Open-source. Every line of code is publicly auditable on GitHub: https://github.com/bhavikprit/Linkedin-Messaging
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚙️ SETUP AI DRAFTING (OPTIONAL)
+
+1. Get an Anthropic API key at https://console.anthropic.com/settings/keys
+2. Open extension Settings (click ⚙︎ in the popup or right-click icon → Options)
+3. Paste your API key, test connection, add your sender details, and save
+4. Toggle "Use AI" in the popup and draft away
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💡 PERFECT FOR
+
+• Sales professionals crafting outreach
+• Recruiters reaching out to candidates
+• Job seekers networking with hiring managers
+• Anyone who sends LinkedIn messages and wants to save time
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🤝 OPEN SOURCE
+
+This extension is free, open-source, and community-driven. Contributions welcome!
+GitHub: https://github.com/bhavikprit/Linkedin-Messaging
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📬 Support & Feedback: bhavikpatel13792@gmail.com

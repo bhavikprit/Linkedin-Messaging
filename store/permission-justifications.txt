@@ -1,0 +1,31 @@
+# Permission Justifications for Chrome Web Store Review
+
+Use these when filling out the Chrome Web Store submission form.
+
+---
+
+## activeTab
+
+"The extension needs activeTab permission to read profile information (name, role, company, headline, experience) from the LinkedIn profile page the user is currently viewing. This data is used to generate a personalized outreach message. The extension only accesses the active tab when the user clicks the extension icon — it never accesses tabs in the background."
+
+## scripting
+
+"The extension uses the scripting permission to inject a content script (content/scraper.js) into LinkedIn profile pages. This script reads publicly visible profile fields from the page DOM so the user can review them in the popup and generate a draft message. The content script is injected only on LinkedIn profile pages (linkedin.com/in/*) and only when needed."
+
+## storage
+
+"The extension uses chrome.storage.local to save user preferences on their device: their Anthropic API key (for optional AI drafting), preferred AI model, sender details (name, role, company), and default drafting settings (intent, tone, length). No data is synced or sent to external servers. All stored data can be cleared by the user at any time via the Options page."
+
+## Host Permission: https://www.linkedin.com/*
+
+"This host permission is required so the content script can run on LinkedIn profile pages to read publicly visible profile information. The extension's content_scripts declaration in manifest.json targets https://www.linkedin.com/in/* specifically. The extension only reads data from the page the user is actively viewing — it does not crawl, navigate, or access any other LinkedIn pages."
+
+## Host Permission: https://api.anthropic.com/*
+
+"This host permission allows the extension's background service worker to make API calls to Anthropic's Claude API for AI-powered message drafting. This is an optional feature — the user must explicitly enable 'Use AI' and provide their own API key. When enabled, the extension sends the profile information and drafting preferences to api.anthropic.com to generate a personalized message. The API key is stored locally and sent directly from the service worker to Anthropic — it never touches the page context."
+
+---
+
+## Single Purpose Description
+
+"LinkedIn Message Drafter helps users draft personalized outreach messages for LinkedIn profiles using customizable templates or optional AI assistance."

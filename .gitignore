@@ -1,0 +1,19 @@
+.DS_Store
+.claude/
+node_modules/
+*.zip
+*.crx
+*.pem
+.env
+.env.local
+
+# Editor configs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS files
+Thumbs.db
+Desktop.ini
