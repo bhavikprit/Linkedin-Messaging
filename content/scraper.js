@@ -195,6 +195,11 @@
     return out;
   }
 
+  function isLocation(text) {
+    return /, [a-zA-Z\s.-]{2,20}(, [a-zA-Z\s.-]{2,20})?$/.test(text) || 
+           /united states|united kingdom|canada|india|germany|france|australia|singapore|london|tokyo|paris|kirkland|seattle|new york/i.test(text);
+  }
+
   function scrapeSDUITopCard() {
     const name = getName();
     if (!name) return null;
@@ -231,7 +236,8 @@
     for (const t of textElements) {
       if (seen.has(t)) continue;
       seen.add(t);
-      if (/contact info|connection|follower|· \d(st|nd|rd)/i.test(t) || t === "·") {
+      // Skip buttons, links, verification triggers or connection stats
+      if (/contact info|connection|follower|· \d(st|nd|rd)|follow|message|more|connect|pending|withdraw|premium/i.test(t) || t === "·") {
         continue;
       }
       filtered.push(t);
@@ -240,9 +246,23 @@
     const nameIndex = filtered.findIndex((t) => t.toLowerCase().includes(name.toLowerCase()));
     if (nameIndex === -1) return null;
 
-    const headline = filtered[nameIndex + 1] || "";
-    const company = filtered[nameIndex + 2] || "";
-    const location = filtered[nameIndex + 3] || "";
+    const remaining = filtered.slice(nameIndex + 1);
+    let headline = "";
+    let company = "";
+    let location = "";
+
+    if (remaining.length > 0) {
+      headline = remaining[0];
+    }
+
+    for (let i = 1; i < remaining.length; i++) {
+      const val = remaining[i];
+      if (isLocation(val)) {
+        location = val;
+      } else if (!company && val.length < 100) {
+        company = val;
+      }
+    }
 
     return { headline, company, location };
   }
@@ -264,9 +284,14 @@
         if (!headline) headline = sdui.headline;
         if (!loc) loc = sdui.location;
         if (!company) company = sdui.company;
+        
         if (!role && headline) {
           if (headline.includes(" at ")) {
             role = headline.split(" at ")[0].trim();
+            if (!company) company = headline.split(" at ")[1].trim();
+          } else if (headline.includes(", ")) {
+            role = headline.split(", ")[0].trim();
+            if (!company) company = headline.split(", ")[1].trim();
           } else {
             role = headline;
           }
