@@ -26,8 +26,20 @@
   /** Find the <section> that contains an anchor like <div id="about">. */
   function sectionByAnchor(anchorId) {
     const anchor = document.getElementById(anchorId);
-    if (!anchor) return null;
-    return anchor.closest("section");
+    if (anchor) return anchor.closest("section");
+
+    // Fallback: search for section heading text (About, Experience, Education)
+    const headings = document.querySelectorAll("main section h2, main section h3, section h2, section h3");
+    const target = anchorId.toLowerCase();
+    for (const h of headings) {
+      const text = clean(h.textContent).toLowerCase();
+      // Strip any visually hidden text
+      const cleanText = text.replace(/visually-hidden.*/, "").trim();
+      if (cleanText === target || cleanText.startsWith(target)) {
+        return h.closest("section");
+      }
+    }
+    return null;
   }
 
   function getName() {
@@ -43,13 +55,32 @@
   }
 
   function getHeadline() {
-    // The headline sits in the top card as a text-body-medium block.
+    // 1) Direct selector for the standard class
+    const standard = document.querySelector("main .text-body-medium.break-words");
+    if (standard && clean(standard.textContent)) return clean(standard.textContent);
+
+    // 2) Sibling of h1 or container child in pv-text-details__left-panel
+    const leftPanel = document.querySelector(".pv-text-details__left-panel");
+    if (leftPanel) {
+      const children = Array.from(leftPanel.querySelectorAll("div, span, p"));
+      for (const el of children) {
+        const text = clean(el.textContent);
+        if (text && el.querySelector('span[aria-hidden="true"]')) {
+          const vt = clean(visibleText(el));
+          if (vt && vt.length < 220 && !vt.includes(getName()) && !/follower|connection|location|·/i.test(vt)) return vt;
+        } else if (text && text.length < 220 && !text.includes(getName()) && !/follower|connection|location|·/i.test(text)) {
+          return text;
+        }
+      }
+    }
+
+    // 3) General candidates
     const candidates = document.querySelectorAll(
-      "main .text-body-medium.break-words, main div.text-body-medium"
+      "main .text-body-medium.break-words, main div.text-body-medium, main [class*='text-body-medium']"
     );
     for (const c of candidates) {
       const t = clean(c.textContent);
-      if (t && t.length < 220) return t;
+      if (t && t.length < 220 && !t.includes(getName())) return t;
     }
     const og = document.querySelector('meta[property="og:description"]');
     return og ? clean(og.content) : "";
@@ -60,7 +91,20 @@
       "main span.text-body-small.inline.t-black--light.break-words"
     );
     if (el) return clean(el.textContent);
-    // Fallback: any small light-text span in the top card that isn't a count.
+
+    // Fallback 2: Check pv-text-details__left-panel sub-items
+    const leftPanel = document.querySelector(".pv-text-details__left-panel");
+    if (leftPanel) {
+      const smalls = leftPanel.querySelectorAll(".text-body-small, span");
+      for (const s of smalls) {
+        const t = clean(s.textContent);
+        if (t && !/follower|connection|·|contact info/i.test(t) && t.length < 80) {
+          return t;
+        }
+      }
+    }
+
+    // Fallback 3: any small light-text span in the top card that isn't a count.
     const spans = document.querySelectorAll("main span.text-body-small");
     for (const s of spans) {
       const t = clean(s.textContent);
@@ -97,19 +141,30 @@
   function getExperience(limit = 3) {
     const section = sectionByAnchor("experience");
     if (!section) return [];
-    const items = section.querySelectorAll("li.artdeco-list__item, li.pvs-list__paged-list-item");
+    let items = section.querySelectorAll("li.artdeco-list__item, li.pvs-list__paged-list-item");
+    if (!items || items.length === 0) {
+      items = section.querySelectorAll("li");
+    }
     const out = [];
     for (const li of items) {
-      const bold = li.querySelector(
+      let bold = li.querySelector(
         ".t-bold span[aria-hidden='true'], .mr1.t-bold span[aria-hidden='true'], .hoverable-link-text.t-bold span[aria-hidden='true']"
       );
-      const normals = li.querySelectorAll(".t-14.t-normal span[aria-hidden='true']");
+      if (!bold) {
+        bold = li.querySelector(".t-bold, [class*='t-bold']");
+      }
+
+      let normals = li.querySelectorAll(".t-14.t-normal span[aria-hidden='true']");
+      if (!normals || normals.length === 0) {
+        normals = li.querySelectorAll(".t-normal, [class*='t-normal'], .t-14.t-normal");
+      }
+
       const title = clean(bold ? bold.textContent : "");
-      // Pick the first normal span that reads like a company, skipping date/type rows.
+
       let company = "";
       for (const n of normals) {
         const t = clean(n.textContent.split("·")[0]);
-        if (t && !looksLikeDateOrType(t)) {
+        if (t && !looksLikeDateOrType(t) && t !== title) {
           company = t;
           break;
         }
@@ -123,10 +178,16 @@
   function getEducation(limit = 2) {
     const section = sectionByAnchor("education");
     if (!section) return [];
-    const items = section.querySelectorAll("li.artdeco-list__item, li.pvs-list__paged-list-item");
+    let items = section.querySelectorAll("li.artdeco-list__item, li.pvs-list__paged-list-item");
+    if (!items || items.length === 0) {
+      items = section.querySelectorAll("li");
+    }
     const out = [];
     for (const li of items) {
-      const bold = li.querySelector(".t-bold span[aria-hidden='true'], .hoverable-link-text.t-bold span[aria-hidden='true']");
+      let bold = li.querySelector(".t-bold span[aria-hidden='true'], .hoverable-link-text.t-bold span[aria-hidden='true']");
+      if (!bold) {
+        bold = li.querySelector(".t-bold, [class*='t-bold']");
+      }
       const school = clean(bold ? bold.textContent : "");
       if (school) out.push(school);
       if (out.length >= limit) break;
@@ -134,11 +195,84 @@
     return out;
   }
 
+  function scrapeSDUITopCard() {
+    const name = getName();
+    if (!name) return null;
+
+    let nameEl = null;
+    const allTextEls = document.querySelectorAll("h1, h2, h3, p, span");
+    for (const el of allTextEls) {
+      if (clean(el.textContent) === name) {
+        nameEl = el;
+        break;
+      }
+    }
+    if (!nameEl) return null;
+
+    let parent = nameEl.parentElement;
+    let topCardSection = null;
+    for (let i = 0; i < 15; i++) {
+      if (!parent) break;
+      const pCount = parent.querySelectorAll("p").length;
+      if (pCount >= 3) {
+        topCardSection = parent;
+        break;
+      }
+      parent = parent.parentElement;
+    }
+    if (!topCardSection) return null;
+
+    const textElements = Array.from(topCardSection.querySelectorAll("p, span"))
+      .map((el) => clean(el.textContent))
+      .filter((t) => t.length > 0);
+
+    const filtered = [];
+    const seen = new Set();
+    for (const t of textElements) {
+      if (seen.has(t)) continue;
+      seen.add(t);
+      if (/contact info|connection|follower|· \d(st|nd|rd)/i.test(t) || t === "·") {
+        continue;
+      }
+      filtered.push(t);
+    }
+
+    const nameIndex = filtered.findIndex((t) => t.toLowerCase().includes(name.toLowerCase()));
+    if (nameIndex === -1) return null;
+
+    const headline = filtered[nameIndex + 1] || "";
+    const company = filtered[nameIndex + 2] || "";
+    const location = filtered[nameIndex + 3] || "";
+
+    return { headline, company, location };
+  }
+
   function scrapeProfile() {
     const fullName = getName();
     const parts = fullName.split(" ").filter(Boolean);
-    const experience = getExperience();
-    const current = experience[0] || { title: "", company: "" };
+
+    let headline = getHeadline();
+    let loc = getLocation();
+    let experience = getExperience();
+    let current = experience[0] || { title: "", company: "" };
+    let company = current.company;
+    let role = current.title;
+
+    if (!headline || !loc || !company) {
+      const sdui = scrapeSDUITopCard();
+      if (sdui) {
+        if (!headline) headline = sdui.headline;
+        if (!loc) loc = sdui.location;
+        if (!company) company = sdui.company;
+        if (!role && headline) {
+          if (headline.includes(" at ")) {
+            role = headline.split(" at ")[0].trim();
+          } else {
+            role = headline;
+          }
+        }
+      }
+    }
 
     return {
       ok: true,
@@ -146,11 +280,11 @@
       fullName,
       firstName: parts[0] || "",
       lastName: parts.length > 1 ? parts[parts.length - 1] : "",
-      headline: getHeadline(),
-      location: getLocation(),
+      headline: headline,
+      location: loc,
       about: getAbout(),
-      role: current.title,
-      company: current.company,
+      role: role,
+      company: company,
       experience,
       education: getEducation(),
       scrapedAt: Date.now(),

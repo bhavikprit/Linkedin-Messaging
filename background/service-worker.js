@@ -4,6 +4,7 @@
 
 const ANTHROPIC_URL = "https://api.anthropic.com/v1/messages";
 const ANTHROPIC_VERSION = "2023-06-01";
+const OPENROUTER_URL = "https://openrouter.ai/api/v1/chat/completions";
 
 const SYSTEM_PROMPT = `You are an expert at writing concise, genuinely personalized LinkedIn outreach messages that get replies. You write the way a thoughtful human does: warm, specific, and direct.
 
@@ -72,12 +73,7 @@ function buildUserPrompt(payload) {
   return lines.join("\n");
 }
 
-async function generateDraft(payload) {
-  const { apiKey, model } = payload;
-  if (!apiKey) {
-    return { ok: false, error: "No API key set. Open the extension's Settings and paste your Anthropic API key." };
-  }
-
+async function generateDraftAnthropic(apiKey, model, payload) {
   let resp;
   try {
     resp = await fetch(ANTHROPIC_URL, {
@@ -125,29 +121,113 @@ async function generateDraft(payload) {
   return { ok: true, text, model: data.model };
 }
 
-async function testKey(apiKey, model) {
-  if (!apiKey) return { ok: false, error: "No key provided." };
+async function generateDraftOpenRouter(apiKey, model, payload) {
+  let resp;
   try {
-    const resp = await fetch(ANTHROPIC_URL, {
+    resp = await fetch(OPENROUTER_URL, {
       method: "POST",
       headers: {
         "content-type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": ANTHROPIC_VERSION,
-        "anthropic-dangerous-direct-browser-access": "true",
+        "Authorization": `Bearer ${apiKey}`,
+        "HTTP-Referer": "https://github.com/bhavikprit/Linkedin-Messaging",
+        "X-Title": "LinkedIn Message Drafter",
       },
       body: JSON.stringify({
-        model: model || "claude-opus-4-8",
-        max_tokens: 1,
-        messages: [{ role: "user", content: "Hi" }],
+        model: model,
+        messages: [
+          { role: "system", content: SYSTEM_PROMPT },
+          { role: "user", content: buildUserPrompt(payload) }
+        ],
       }),
     });
-    if (resp.ok) return { ok: true };
-    const data = await resp.json().catch(() => ({}));
-    const m = data && data.error && data.error.message ? data.error.message : `HTTP ${resp.status}`;
-    return { ok: false, error: m };
   } catch (e) {
-    return { ok: false, error: `Network error: ${e && e.message ? e.message : e}` };
+    return { ok: false, error: `Network error reaching OpenRouter: ${e && e.message ? e.message : e}` };
+  }
+
+  let data;
+  try {
+    data = await resp.json();
+  } catch (e) {
+    return { ok: false, error: `Could not read API response (HTTP ${resp.status}).` };
+  }
+
+  if (!resp.ok) {
+    const msg = data && data.error && data.error.message ? data.error.message : `HTTP ${resp.status}`;
+    return { ok: false, error: `OpenRouter API error: ${msg}` };
+  }
+
+  const choice = data.choices && data.choices[0];
+  const text = choice && choice.message && choice.message.content ? choice.message.content.trim() : "";
+  if (!text) {
+    return { ok: false, error: "The model returned an empty message. Try again." };
+  }
+
+  return { ok: true, text, model: data.model };
+}
+
+async function generateDraft(payload) {
+  const { provider, apiKey, openRouterKey, model } = payload;
+  if (provider === "openrouter") {
+    if (!openRouterKey) {
+      return { ok: false, error: "No API key set. Open the extension's Settings and paste your OpenRouter API key." };
+    }
+    return generateDraftOpenRouter(openRouterKey, model, payload);
+  } else {
+    if (!apiKey) {
+      return { ok: false, error: "No API key set. Open the extension's Settings and paste your Anthropic API key." };
+    }
+    return generateDraftAnthropic(apiKey, model, payload);
+  }
+}
+
+async function testKey(provider, apiKey, model) {
+  if (!apiKey) return { ok: false, error: "No key provided." };
+  if (provider === "openrouter") {
+    try {
+      const resp = await fetch(OPENROUTER_URL, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "Authorization": `Bearer ${apiKey}`,
+          "HTTP-Referer": "https://github.com/bhavikprit/Linkedin-Messaging",
+          "X-Title": "LinkedIn Message Drafter",
+        },
+        body: JSON.stringify({
+          model: model,
+          max_tokens: 1,
+          messages: [{ role: "user", content: "Hi" }],
+        }),
+      });
+      if (resp.ok) return { ok: true };
+      const data = await resp.json().catch(() => ({}));
+      const m = data && data.error && data.error.message ? data.error.message : `HTTP ${resp.status}`;
+      return { ok: false, error: m };
+    } catch (e) {
+      return { ok: false, error: `Network error: ${e && e.message ? e.message : e}` };
+    }
+  } else {
+    try {
+      const resp = await fetch(ANTHROPIC_URL, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          "x-api-key": apiKey,
+          "anthropic-version": ANTHROPIC_VERSION,
+          "anthropic-dangerous-direct-browser-access": "true",
+        },
+        body: JSON.stringify({
+          model: model || "claude-opus-4-8",
+          max_tokens: 1,
+          messages: [{ role: "user", content: "Hi" }],
+        }),
+      });
+      if (resp.ok) return { ok: true };
+      const data = await resp.json().catch(() => ({}));
+      const m = data && data.error && data.error.message ? data.error.message : `HTTP ${resp.status}`;
+      return { ok: false, error: m };
+    } catch (e) {
+      return { ok: false, error: `Network error: ${e && e.message ? e.message : e}` };
+    }
   }
 }
 
@@ -159,7 +239,7 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     return true; // keep the message channel open for the async response
   }
   if (msg && msg.type === "TEST_KEY") {
-    testKey(msg.apiKey, msg.model)
+    testKey(msg.provider, msg.apiKey, msg.model)
       .then(sendResponse)
       .catch((e) => sendResponse({ ok: false, error: String(e && e.message ? e.message : e) }));
     return true;

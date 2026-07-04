@@ -13,12 +13,11 @@
       <section class="card">
         <h2>AI drafting (optional)</h2>
         <p class="muted">
-          Add an Anthropic API key to turn on "Use AI" in the popup. Without a key, the
-          extension still works using editable templates. Your key is stored only on this
-          device (<code>chrome.storage.local</code>) and is sent directly to Anthropic.
-          <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer">Get a key →</a>
+          Add API keys to enable "Use AI" in the popup. Without keys, the
+          extension still works using editable templates. Keys are stored only on this
+          device (<code>chrome.storage.local</code>) and sent directly to the providers.
         </p>
-        <label>Anthropic API key
+        <label>Anthropic API key <a href="https://console.anthropic.com/settings/keys" target="_blank" rel="noreferrer" style="float: right;">Get key →</a>
           <div class="row">
             <input id="apiKey" type="password" placeholder="sk-ant-…" autocomplete="off" />
             <button id="toggleKey" class="secondary" type="button">Show</button>
@@ -26,6 +25,15 @@
           </div>
         </label>
         <p id="keyStatus" class="status"></p>
+
+        <label>OpenRouter API key <a href="https://openrouter.ai/keys" target="_blank" rel="noreferrer" style="float: right;">Get key →</a>
+          <div class="row">
+            <input id="openRouterKey" type="password" placeholder="sk-or-…" autocomplete="off" />
+            <button id="toggleOrKey" class="secondary" type="button">Show</button>
+            <button id="testOrKey" class="secondary" type="button">Test</button>
+          </div>
+        </label>
+        <p id="orKeyStatus" class="status"></p>
 
         <label>Model
           <select id="model"></select>

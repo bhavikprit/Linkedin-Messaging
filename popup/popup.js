@@ -30,6 +30,7 @@ const el = {
 
 let settings = DEFAULTS.settings;
 let apiKey = "";
+let openRouterKey = "";
 let activeTab = null;
 let templateIndex = 0; // rotate through template variants on regenerate
 
@@ -70,9 +71,21 @@ function applyDefaults() {
   setSelect(el.intent, settings.defaultIntent, d.defaultIntent);
   setSelect(el.tone, settings.defaultTone, d.defaultTone);
   setSelect(el.length, settings.defaultLength, d.defaultLength);
-  el.useAI.checked = settings.useAI && !!apiKey;
-  el.useAI.disabled = !apiKey;
-  el.aiHint.classList.toggle("hidden", !!apiKey);
+
+  const modelDef = DEFAULTS.models.find((m) => m.id === settings.model);
+  const provider = modelDef ? modelDef.provider : "anthropic";
+  const hasKey = provider === "openrouter" ? !!openRouterKey : !!apiKey;
+
+  el.useAI.checked = settings.useAI && hasKey;
+  el.useAI.disabled = !hasKey;
+
+  if (hasKey) {
+    el.aiHint.classList.add("hidden");
+  } else {
+    el.aiHint.classList.remove("hidden");
+    const name = provider === "openrouter" ? "OpenRouter" : "Anthropic";
+    el.aiHint.textContent = `Add your ${name} API key in Settings to enable AI drafting.`;
+  }
 }
 
 function setProfile(p) {
@@ -170,8 +183,12 @@ function generateFromTemplate(profile) {
 }
 
 async function generateWithAI(profile) {
+  const modelDef = DEFAULTS.models.find((m) => m.id === settings.model);
+  const provider = modelDef ? modelDef.provider : "anthropic";
   const payload = {
+    provider,
     apiKey,
+    openRouterKey,
     model: settings.model,
     profile,
     intent: el.intent.value,
@@ -205,12 +222,16 @@ async function generate() {
   el.output.dataset.draftIntent = el.intent.value; // pin the counter to this draft's intent
   setStatus("");
 
-  if (el.useAI.checked && apiKey) {
+  const modelDef = DEFAULTS.models.find((m) => m.id === settings.model);
+  const provider = modelDef ? modelDef.provider : "anthropic";
+  const hasKey = provider === "openrouter" ? !!openRouterKey : !!apiKey;
+
+  if (el.useAI.checked && hasKey) {
     const seq = ++reqSeq;
     el.generate.disabled = true;
     el.regenerate.disabled = true;
     el.generate.textContent = "Drafting…";
-    setStatus("Asking Claude…");
+    setStatus(provider === "openrouter" ? "Asking OpenRouter…" : "Asking Claude…");
     const resp = await generateWithAI(profile);
     if (seq !== reqSeq) return; // a newer request superseded this one
     el.generate.disabled = false;
@@ -271,13 +292,21 @@ async function init() {
   el.intent.addEventListener("change", updateCharCount);
   el.rescrape.addEventListener("click", refresh);
   el.useAI.addEventListener("change", () => {
-    if (el.useAI.checked && !apiKey) {
+    const modelDef = DEFAULTS.models.find((m) => m.id === settings.model);
+    const provider = modelDef ? modelDef.provider : "anthropic";
+    const hasKey = provider === "openrouter" ? !!openRouterKey : !!apiKey;
+    if (el.useAI.checked && !hasKey) {
       el.useAI.checked = false;
-      setStatus("Add an API key in Settings to use AI.", "err");
+      const name = provider === "openrouter" ? "OpenRouter" : "Anthropic";
+      setStatus(`Add an ${name} API key in Settings to use AI.`, "err");
     }
   });
 
-  [settings, apiKey] = await Promise.all([store.getSettings(), store.getApiKey()]);
+  [settings, apiKey, openRouterKey] = await Promise.all([
+    store.getSettings(),
+    store.getApiKey(),
+    store.getOpenRouterKey(),
+  ]);
   applyDefaults();
 
   const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
